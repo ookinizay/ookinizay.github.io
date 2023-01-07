@@ -1,0 +1,268 @@
+<html>
+  <head>
+    
+    <link href='https://tristen.ca/tablesort/demo/style.css' rel='stylesheet'>
+    <link href='tablesort/tablesort.css' rel='stylesheet'>
+  </head>
+
+  <body>
+
+<!-- to do list:
+
+- HARD: figure out how to get data from gsheet -> this
+
+-->
+    
+    <!-- Include Papa Parse from a CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
+
+    <!-- Include Tablesort from a local file -->
+    <script src="tablesort/dist/tablesort.min.js"></script>
+    <script src="tablesort.date.min.js"></script>
+    <script src="tablesort.number.min.js"></script>
+
+
+    <input type="text" id="search-input" placeholder="Search...">
+    <button id="search-button">Search</button>
+    <table id="sheet-data" class="sort"></table>
+
+    
+    <script>
+      // function to return first part of a string
+      const getFirstWord = (str) => {
+          let firstWord = str;
+          for (let i = 0; i < str.length; i++) {
+              if (str[i] === '_' || str[i] === ' ') {
+                  firstWord = str.substring(0, i);
+                  break;
+              }
+          }
+          
+          return firstWord;
+      }
+
+      // The path to your CSV file
+      const csvUrl = './danya.csv';
+
+      // Fetch the CSV data
+      fetch(csvUrl)
+    .then(response => response.text())
+    .then(csv => {
+        // Parse the CSV data into an array of objects
+        const data = Papa.parse(csv, {
+            header: true,
+            transform: value => value.trim()
+        }).data;
+
+        // Get a reference to the table element
+        const table = document.getElementById('sheet-data');
+
+        // Get the keys of the first object in the data array
+        // These will be the column names
+        const columnNames = Object.keys(data[0]);
+
+        // Create a row for the column names
+        const tr = document.createElement('tr');
+        columnNames.forEach(name => {
+            const th = document.createElement('th');
+            th.innerHTML = name;
+
+            // get the first word as the header id
+            header_id = getFirstWord(name).toLowerCase();
+            th.setAttribute("id", header_id)
+            
+            // hide some column headers
+            if ((header_id == "link") || (header_id == "game")) {
+                th.style.display = 'none';
+            }
+            tr.appendChild(th);
+        });
+        table.appendChild(tr);
+
+        // Build the table rows and cells
+        data.forEach(row => {
+
+            const tr = document.createElement('tr');
+
+            // hard code row ids based on current table structure
+            let i = 1;
+            for (const key in row) {
+                const td = document.createElement('td');
+                td.innerHTML = row[key];
+                td.style.border = '1px solid black';
+                td.style.padding = '5px';
+                if (i == 2) { td.setAttribute("id", "game"); td.style.display = 'none';}
+                if (i == 3) { td.setAttribute("id", "rating");}
+                if (i == 5) { td.setAttribute("id", "opening"); }
+                if (i == 6) { td.setAttribute("id", "link"); td.style.display = 'none';}
+                if (i == 7) { td.setAttribute("id", "start"); }
+                if (i == 8) { td.setAttribute("id", "analysis"); }
+                tr.appendChild(td);
+                i++;
+            }
+            
+            table.appendChild(tr);
+        });
+
+        
+    })
+    .then(function(result) {
+
+         // now modify the table, replacing opening names with links to YouTube videos
+         const tableRows = document.querySelectorAll('#sheet-data tr');
+
+        firstRow = 1
+        tableRows.forEach(row => {
+            if (firstRow) {
+                firstRow = 0;
+                return;
+            }
+            console.log(row);
+            if (row.querySelector('[id="link"]') === null) {
+                return;
+            }
+
+            // pull out some elements we are going to use
+            let ratingElement = row.querySelector('[id="rating"]');
+            let link = row.querySelector('[id="link"]').textContent;
+            let start = row.querySelector('[id="start"]').textContent;
+            let startElement = row.querySelector('[id="start"]');
+            let analysisElement = row.querySelector('[id="analysis"]');
+            let analysis = analysisElement.textContent;
+            let openingElement = row.querySelector('[id="opening"]');
+            console.log(link);
+            console.log(analysis);
+
+            // if no rating, use the previous rating
+            if ((ratingElement.textContent === null) || (ratingElement.textContent == null) || (ratingElement.textContent == "")) {
+                ratingElement.textContent = prev_rating;
+            }
+            prev_rating = ratingElement.textContent;
+            
+            // if no link, use the previous link
+            if ((link === null) || (link == null) || (link == "")) {
+                link = prev_link;
+            }
+            prev_link = link;
+
+            linkElement = document.createElement('a');
+
+            // update the start time if it's non-zero
+            if (start != 0) {
+
+                // split the minutes and seconds
+                var parts = start.split(/[.]/);
+                var min = parts[0];  // "35"
+                var sec = parts[1];  // "43"
+
+                // add start time to link
+                if (link.indexOf('?') == -1) {
+                    linkElement.href = `${link}?t=${min}m${sec}s`;
+                } else {
+                    linkElement.href = `${link}&t=${min}m${sec}s`;
+                }
+            }
+            else {
+                linkElement.href = `${link}`;
+            }
+
+            // put the link in the Start column
+            linkElement.textContent = startElement.textContent;
+            startElement.innerHTML = '';
+            startElement.appendChild(linkElement);
+            
+            // create an analysis time link if there
+            if (~((analysis === null) || (analysis == null) || (analysis == ""))) {
+                analysisLinkElement = document.createElement('a');
+
+                // split the analysis time into minutes and seconds
+                var parts = analysis.split(/[.]/);
+                var min = parts[0];  // "35"
+                var sec = parts[1];  // "43"
+
+                // add analysis time to the link content
+                if (link.indexOf('?') == -1) {
+                    analysisLinkElement.href = `${link}?t=${min}m${sec}s`;
+                } else {
+                    analysisLinkElement.href = `${link}&t=${min}m${sec}s`;
+                }
+                console.log(analysisLinkElement.href);
+                console.log("ANALYSIS VALUE IS " + analysis);
+                analysisLinkElement.textContent = analysis
+                analysisElement.innerHTML = '';
+                analysisElement.appendChild(analysisLinkElement);
+                console.log(analysisLinkElement);
+                console.log(analysisElement);
+            }
+            
+
+            // hide the long link and video number columns that we aren't using
+            row.querySelector('[id="game"]').style.display = 'none';
+            row.querySelector('[id="link"]').style.display = 'none';
+        });
+    });
+//     .catch(function(error) {
+//         console.log('got to the error');
+//     });
+
+      // Create a button element
+      const button = document.createElement('button');
+
+      // Set the text content of the button
+      button.textContent = 'Sort Table';
+      
+      // Add an event listener to the button
+      button.addEventListener('click', () => {
+          console.log('Button clicked');
+          // Create a new Tablesort instance for the table
+          new Tablesort(document.getElementById('sheet-data'), {
+              descending: false,
+              sortFunction: (a, b, cell) => {
+                  // Use the second column (index 1) for sorting
+                  return cell.column === 4 ? a - b : a.localeCompare(b);
+              }
+          });
+      });
+      
+
+      // Append the button to the DOM
+      document.body.appendChild(button);
+
+      // set up the search function 
+      const searchInput = document.getElementById('search-input');
+      const searchButton = document.getElementById('search-button');
+
+      searchButton.addEventListener('click', () => {
+          const tableRows = document.querySelectorAll('#sheet-data tr');
+          const searchTerm = searchInput.value.toLowerCase();
+          
+          console.log('I searched' + searchTerm);
+          console.log('tableRows is ' + Object.keys(tableRows).length);
+
+          // skip the first row
+          firstRow = 1
+          tableRows.forEach(row => {
+              if (firstRow) {
+                  firstRow = 0;
+                  return;
+              }
+              const rowText = row.textContent.toLowerCase();
+              console.log('The row said ' + rowText)
+              if (rowText.indexOf(searchTerm) !== -1) {
+                  row.style.display = '';
+              } else {
+                  row.style.display = 'none';
+              }
+          });
+      });
+
+      //make the button the default action for enter in the search box
+      searchInput.addEventListener('keydown', event => {
+          if (event.key === 'Enter') {
+              searchButton.click();
+          }
+      });
+
+    </script>
+
+</body></html>
