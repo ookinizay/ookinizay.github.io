@@ -9,7 +9,8 @@
 
 <!-- to do list:
 
-- HARD: figure out how to get data from gsheet -> this
+- sort by rating
+- figure out how to read data from gsheet instead of local -> seems hard
 
 -->
     
@@ -201,54 +202,41 @@
             row.querySelector('[id="link"]').style.display = 'none';
         });
     });
-//     .catch(function(error) {
-//         console.log('got to the error');
-//     });
-
-      // Create a button element
-      const button = document.createElement('button');
-
-      // Set the text content of the button
-      button.textContent = 'Sort Table';
       
-      // Add an event listener to the button
-      button.addEventListener('click', () => {
-          console.log('Button clicked');
-          // Create a new Tablesort instance for the table
-          new Tablesort(document.getElementById('sheet-data'), {
-              descending: false,
-              sortFunction: (a, b, cell) => {
-                  // Use the second column (index 1) for sorting
-                  return cell.column === 4 ? a - b : a.localeCompare(b);
-              }
-          });
-      });
-      
-
-      // Append the button to the DOM
-      document.body.appendChild(button);
-
       // set up the search function 
       const searchInput = document.getElementById('search-input');
       const searchButton = document.getElementById('search-button');
 
       searchButton.addEventListener('click', () => {
           const tableRows = document.querySelectorAll('#sheet-data tr');
-          const searchTerm = searchInput.value.toLowerCase();
-          
-          console.log('I searched' + searchTerm);
-          console.log('tableRows is ' + Object.keys(tableRows).length);
+          const searchStr = searchInput.value.toLowerCase();
 
-          // skip the first row
+          // split the search result into tokens (based on spaces)
+          var parts = searchStr.split(/[ ]/);
+          
+          // loop over table rows, skipping the first row
           firstRow = 1
           tableRows.forEach(row => {
               if (firstRow) {
                   firstRow = 0;
                   return;
               }
+
+              // get the row content
               const rowText = row.textContent.toLowerCase();
               console.log('The row said ' + rowText)
-              if (rowText.indexOf(searchTerm) !== -1) {
+
+              // check it against all the search terms
+              // note default to found, since we want to reject
+              // if any string part
+              let found = 0;
+              for(let i = 0; i < parts.length; i++) {
+                  if(rowText.indexOf(parts[i]) > -1) {
+                      found++;
+                  }
+              }
+              
+              if (found == parts.length) {
                   row.style.display = '';
               } else {
                   row.style.display = 'none';
@@ -257,10 +245,8 @@
       });
 
       //make the button the default action for enter in the search box
-      searchInput.addEventListener('keydown', event => {
-          if (event.key === 'Enter') {
-              searchButton.click();
-          }
+      searchInput.addEventListener('keyup', event => {
+          searchButton.click();
       });
 
     </script>
